@@ -1,0 +1,381 @@
+CLASH ISLE - GIOCARE ONLINE
+===========================
+
+Il gioco online funziona con stanze create dai giocatori (pubbliche o con
+password). Per farle funzionare serve un piccolo programma, il SERVER, che
+tiene l'elenco delle stanze e mette in contatto i due giocatori. La partita
+vera e propria gira nei browser dei due giocatori: il server fa solo da
+tramite.
+
+Cosa c'e' nella cartella
+  index.html   il gioco (e' lo stesso clash-isle.html, rinominato)
+  server.js    il server (non ha dipendenze: serve solo Node.js)
+  package.json facoltativo, serve a chi lo carica su un servizio di hosting
+
+
+1) PROVARE SUBITO SUL TUO COMPUTER
+----------------------------------
+ - Installa Node.js (versione 16 o superiore) da https://nodejs.org
+ - Apri un terminale nella cartella e scrivi:
+
+       node server.js
+
+ - Apri il browser su  http://localhost:8080  (il server serve anche il gioco)
+ - Per provare da soli apri la pagina in DUE schede o finestre diverse:
+   in una scegli ONLINE > CREA STANZA, nell'altra entra nella stanza.
+
+
+2) GIOCARE CON UN AMICO NELLA STESSA CASA (stessa rete Wi-Fi)
+-------------------------------------------------------------
+ - Sul computer dove gira il server scopri il suo indirizzo:
+     Windows:  scrivi "ipconfig" nel terminale   (cerca "Indirizzo IPv4")
+     Mac:      Impostazioni > Wi-Fi > Dettagli   oppure "ipconfig getifaddr en0"
+     Linux:    "hostname -I"
+ - L'amico apre nel suo browser  http://INDIRIZZO:8080
+   (per esempio http://192.168.1.20:8080)
+ - Se non si collega, controlla che il firewall permetta Node.js sulla
+   porta 8080.
+
+
+3) GIOCARE VIA INTERNET CON AMICI IN PAESI DIVERSI
+---------------------------------------------------
+Tutti devono raggiungere lo stesso server, quindi il server deve avere un
+indirizzo pubblico. Ci sono tre strade.
+
+ A) IL PIU' SEMPLICE: server sul tuo PC + tunnel Cloudflare (gratis, senza account)
+    Non serve toccare il router. Il PC resta acceso mentre si gioca.
+      1. Avvia il server:           node server.js
+      2. Installa cloudflared (https://developers.cloudflare.com/cloudflare-one/):
+           Windows:  winget install --id Cloudflare.cloudflared
+           Mac:      brew install cloudflared
+      3. In un secondo terminale:   cloudflared tunnel --url http://localhost:8080
+      4. Compare un indirizzo tipo  https://parole-casuali.trycloudflare.com
+         Mandalo ai tuoi amici: lo aprono nel browser, il gioco si carica da
+         te e si collega da solo (usa wss://, cioe' connessione cifrata).
+    Limiti: l'indirizzo cambia a ogni avvio e Cloudflare non garantisce che i
+    tunnel senza account restino sempre attivi.
+
+ B) SEMPRE ACCESO: servizio di hosting per Node.js
+    Carica la cartella (index.html, server.js, package.json), ad esempio su un
+    repository GitHub, e crea un "Web Service" con:
+        Comando di avvio:  node server.js      (nessun comando di build)
+    Il servizio ti da' un indirizzo https:// da condividere. Opzioni (controlla
+    sempre i prezzi attuali sui loro siti):
+      - Render: esiste un piano gratuito, ma si spegne dopo 15 minuti senza
+        richieste o messaggi WebSocket (la prima apertura puo' metterci circa
+        30 secondi) e puo' essere riavviato in qualsiasi momento: le stanze
+        aperte sparirebbero. Va bene per provare e per serate tra amici.
+      - Fly.io: non ha piu' un piano gratuito per i nuovi account, ma una
+        macchina piccola sempre accesa costa pochi dollari al mese e puoi
+        scegliere la regione piu' vicina ai giocatori.
+      - Railway e altri servizi simili hanno periodi di prova o piani limitati.
+      - Un VPS tuo (qualche euro al mese) con Node.js: piu' lavoro, ma stabile.
+        Per l'HTTPS serve un certificato (per esempio con Caddy).
+
+ C) SCONSIGLIATO: aprire una porta sul router. Spesso non funziona (provider
+    con CGNAT), espone il tuo computer e non da' una connessione cifrata.
+
+ QUALITA' DEL GIOCO TRA PAESI LONTANI
+    Il server fa solo da tramite, ma ogni comando viaggia da un giocatore
+    all'altro passando da li'. Conta quindi la somma dei due ping. Scegli un
+    server in una posizione "di mezzo". Il gioco si adatta da solo con un
+    ritardo dei comandi (fino a circa 230 ms). Dallo stesso continente va molto
+    bene; fra continenti diversi si sente un po' di ritardo; con ping molto
+    alti e irregolari la partita rallenta per aspettare l'altro (non accelera).
+    Il ping verso il server e' mostrato in alto a destra durante la partita.
+
+
+4) COME SI GIOCA
+----------------
+ 1. Dal menu scegli ONLINE.
+ 2. Scrivi il tuo nome (e, se serve, l'indirizzo del server).
+ 3. CREA STANZA: scegli un nome. Se scrivi una password la stanza e' protetta;
+    se la lasci vuota e' pubblica. In entrambi i casi compare nell'elenco; chi
+    ha il codice di 4 lettere puo' entrare anche con ENTRA CON CODICE.
+ 4. L'altro giocatore la sceglie dall'elenco (le stanze con password hanno
+    "PW") oppure scrive il codice, poi inserisce la password se richiesta.
+ 5. Ognuno sceglie il proprio personaggio. Il creatore sceglie il palco (Tab)
+    e le impostazioni sono le sue Opzioni (vite, danni, forza dei lanci, Super).
+ 6. L'ospite preme SONO PRONTO, poi il creatore preme AVVIA PARTITA.
+ 7. A fine partita Invio riporta alla stanza per una rivincita, Esc esce.
+ In partita Esc significa abbandonare: l'avversario vince.
+
+
+5) NOTE TECNICHE
+----------------
+ - Ogni stanza ha 2 giocatori. Non ci sono account ne' classifiche.
+ - Il gioco scambia solo i comandi premuti, con un piccolo ritardo (da 3 a 9
+   frame, scelto in base al ping). Se la connessione e' lenta la partita puo'
+   fermarsi un attimo in attesa dell'altro. Il ping e' mostrato in alto a destra.
+ - La velocita' e' sempre 60 frame al secondo. Se la connessione e' lenta la
+   partita rallenta per aspettare l'avversario, ma non accelera mai.
+ - Ogni secondo i due giochi controllano di essere identici; se non lo sono la
+   partita si interrompe con un avviso.
+ - Le password non sono salvate in chiaro nel server (solo un codice
+   ottenuto con SHA-256). Con ws:// (senza HTTPS) la connessione non e'
+   cifrata: per internet usa un servizio con https/wss.
+ - Se il server viene riavviato le stanze aperte spariscono.
+ - Controllo veloce che il server sia acceso:  http://INDIRIZZO:8080/stato
+
+
+6) SE QUALCOSA NON VA
+---------------------
+ - "Server non raggiungibile": il server non e' acceso, l'indirizzo e'
+   sbagliato o il firewall blocca la porta.
+ - Pagina aperta da https ma server ws:// : il browser blocca la connessione.
+   Usa wss:// oppure apri il gioco con http://.
+ - Lo stesso nome stanza puo' esistere piu' volte: usa il codice per entrare
+   in quella giusta.
+
+7) PUBBLICARE SU ITCH.IO, GAME JOLT O ALTROVE (INDIRIZZO DEL SERVER)
+--------------------------------------------------------------------
+ Il gioco si collega SEMPRE all'indirizzo scritto nel file, a prescindere da
+ dove e' pubblicato. Quando e' ospitato su itch.io o Game Jolt non parla con
+ un server proprio, quindi usa l'indirizzo ufficiale.
+
+ L'indirizzo si cambia in UN SOLO PUNTO: apri index.html con un editor di testo,
+ cerca la riga
+
+     const SERVER_URL='wss://clash-isle.onrender.com';
+
+ e scrivi al posto di quello l'indirizzo del tuo servizio Render, con wss://
+ davanti e senza barra finale (esempio: wss://nome-del-tuo-servizio.onrender.com).
+ Poi ricarica il gioco sulle piattaforme (stesso file su tutte).
+
+ Regole:
+  - Pagina su itch.io, Game Jolt, Render, file locale: usa SERVER_URL.
+  - Pagina aperta da localhost o dalla rete di casa (prove con "node server.js"):
+    usa il server locale.
+  - Se un giocatore scrive a mano un altro indirizzo nel campo "Indirizzo del
+    server" resta salvato solo sul suo browser. Svuotando il campo e premendo
+    Invio torna a quello ufficiale.
+  - Eventuali indirizzi salvati dalle versioni precedenti vengono ignorati.
+
+ Per itch.io: carica uno zip con index.html alla radice, tipo "HTML",
+ spunta "This file will be played in the browser". Dimensioni consigliate:
+ 960 x 540. Il file clash-isle-itch-gamejolt.zip e' gia' pronto.
+
+
+8) GAMEPAD
+----------
+ Funziona con i pad che il computer riconosce: USB, Bluetooth o wireless
+ (Xbox, PlayStation, Switch Pro, pad generici). Si usa l'API Gamepad del
+ browser (Chrome, Edge, Firefox, Safari recenti). Collega il pad, poi premi un
+ tasto: nel menu principale, in basso a destra, compare "GAMEPAD: nome".
+ Il primo pad comanda P1, il secondo P2. La tastiera continua a funzionare.
+
+ IN PARTITA
+   Stick sinistro o croce    muovi
+   A                         attacco
+   B                         speciale
+   X oppure Y                salto
+   LB oppure LT              scudo
+   RB                        presa
+   RT                        Super
+   Start                     apre la pausa (allenamento: pausa dell'allenamento | tutorial: avanti)
+   Select                    tutorial: ricarica  |  tenuto premuto: pausa
+
+ NEI MENU
+   Croce o stick   naviga (tenendo premuto scorre)
+   A o Start       conferma
+   B o Select      indietro
+   X               cambia difficolta' (come Q)
+   Y               cambia palco nella stanza online (come Tab)
+   LB              costume alternativo (selezione personaggio e stanza online)
+   RB              personaggio casuale (selezione personaggio e stanza online)
+
+ Nota: su itch.io e Game Jolt il gioco e' dentro un riquadro (iframe) e il
+ browser fa passare il pad solo se la piattaforma lo permette. Se il pad non
+ compare nel menu: clicca prima sul gioco, premi un tasto del pad e, se non
+ basta, prova a giocare a schermo intero o nella pagina diretta del gioco.
+ Il suono parte dopo il primo click o tasto premuto (regola dei browser: un
+ pad da solo non basta a farlo partire).
+
+
+9) COSTUMI ALTERNATIVI
+----------------------
+ Se i due giocatori scelgono lo stesso personaggio, il secondo (P2, CPU o ospite
+ online) indossa il costume alternativo, cosi' si distinguono. Cambia il colore
+ del corpo, il resto resta uguale:
+   VOLT arancio · MOAI verde · NEBULA oro · FUSE blu
+   KAGE magenta · GLACIA corallo · RONIN blu · CRONO viola
+ Nella selezione compare la scritta "COSTUME ALTERNATIVO". E' solo estetico:
+ non cambia nulla nelle mosse e non influisce sul gioco online.
+
+10) LINGUE
+----------
+ Il gioco e' in italiano (predefinita), inglese, spagnolo e francese.
+ Si cambia dal menu principale (riquadri IT EN ES FR in alto a destra, tasto L,
+ oppure Y sul gamepad) o da Opzioni > Lingua. La scelta resta salvata nel browser.
+ Tutto e' tradotto: menu, tutorial e lezioni, mosse dei personaggi, palchi, Super,
+ stanze online e messaggi del server.
+
+ Per correggere o migliorare una traduzione apri index.html e cerca la tabella
+ I18N_ROWS: ogni riga e' [italiano, inglese, spagnolo, francese]. Nel testo
+ italiano # e' un numero e {} e' una parte variabile (per esempio il nome di un
+ tasto): vanno lasciati nello stesso numero e nello stesso ordine in ogni lingua.
+ Un testo senza riga di traduzione resta in italiano.
+
+
+11) MODALITA' TOUR ISLE
+-----------------------
+ Dal menu principale: TOUR ISLE (tasto 2). Scegli il personaggio e l'intensita'
+ (Facile, Normale, Difficile), poi affronti 8 round di fila:
+   - round 1-7: sette lottatori scelti a caso tra gli altri nove
+   - round 3 e 7 FRAGILE: i danni inflitti salgono del 70%
+   - round 5 DUELLO: una vita a testa, si parte dal 60%
+   - round 8 FINALE: il Campione, piu' pesante, col Super quasi sempre pronto
+ Hai 3 vite per round (gli avversari 2, nel finale 3). Se perdi un round puoi
+ usare fino a 2 CONTINUE (-1000 punti ciascuno) e ripetere lo stesso round.
+ Punti: base del round + vite rimaste + bonus tempo + bonus regola (+4000 per il
+ Campione). Rank finale da D a S. Il record per ogni intensita' e le volte che hai
+ completato la modalita' restano salvati nel browser.
+ Il modificatore del round (FRAGILE, DUELLO, FINALE) compare grande sulla scheda del round,
+ in un banner subito dopo il VIA! e in un'etichetta fissa in alto durante tutto il combattimento.
+ Si gioca anche col gamepad (croce per scegliere, A per confermare, B per tornare).
+
+ Scorciatoie del menu: 1 VS CPU, 2 Tour Isle, 3 Due giocatori, 4 Allenamento,
+ N Online, T Tutorial, O Opzioni, C Comandi, L Lingua.
+
+
+12) MUSICA E SPECIALE VERSO L'ALTO
+----------------------------------
+ - Nei menu suona sempre lo stesso tema (quello storico dell'Isola del Crepuscolo).
+   Durante la partita, e nell'anteprima del palco, suona la musica del palco.
+ - Vulcano Ardente e Citta' al Neon sono rimaste come erano. Isola del Crepuscolo,
+   Abisso Luminoso, Foresta Incantata e Ghiacciaio Aurora hanno un nuovo brano da
+   battaglia: due sezioni (la seconda piu' intensa), batteria a sedicesimi con
+   riempimenti, arpeggi, melodia doppia e basso piu' incalzante.
+ - Lo speciale verso l'alto, che in aria si puo' usare una sola volta, torna disponibile
+   se vieni colpito (non se il colpo viene parato con lo scudo).
+
+
+13) PERSONAGGIO CASUALE, COSTUMI E MODALITA' PUNTI VITA
+-------------------------------------------------------
+ PERSONAGGIO CASUALE
+   Nella selezione del personaggio (anche per l'avversario, il dummy e in Tour Isle)
+   premi R o clicca CASUALE: il cursore salta tra i personaggi e si ferma su uno
+   a caso. Poi confermi con Invio, oppure ritenti con R. Esc interrompe.
+   Funziona anche nella stanza online.
+
+ COSTUMI
+   Ogni personaggio ha un costume alternativo che si sceglie sempre: premi C o clicca
+   COSTUME (due pallini: originale e alternativo). Vale per P1, P2, la CPU e il dummy.
+   Online ognuno sceglie il proprio e l'altro lo vede.
+   Se i due giocatori scelgono lo stesso personaggio devono avere costumi diversi:
+   se il costume e' uguale, il secondo giocatore viene invertito, e non e' possibile
+   scegliere lo stesso costume dell'altro. In Tour Isle il Campione indossa
+   l'alternativo, tranne quando e' lo stesso personaggio del giocatore con il costume
+   alternativo: allora indossa l'originale. Nel tutorial i costumi sono sempre originali.
+
+ MODALITA' PUNTI VITA (HP)
+   In Opzioni: "Modalita' danni" = PUNTI VITA e "Punti vita" da 50 a 300 (predefinito 150).
+   Invece della percentuale ogni lottatore ha una barra HP: i colpi la riducono e a 0
+   si perde una vita, anche a meta' palco. Il lancio cresce comunque con i danni subiti,
+   e si perde una vita anche uscendo dallo schermo. Si riparte con i punti al massimo.
+   Vale in VS CPU, Due giocatori, Tour Isle e Online (viene deciso dal creatore della
+   stanza). In Allenamento e nel Tutorial resta la percentuale.
+   Nella stanza online l'elenco delle impostazioni mostra ora quelle del creatore
+   (prima mostrava le tue) e il pulsante di avvio non copre piu' le righe.
+
+
+14) NUOVI PERSONAGGI: SPORO E FURIA
+-----------------------------------
+ Ora i personaggi sono 10 (la selezione e la stanza online sono a 5 colonne).
+
+ SPORO (verde) - mago fungo che evoca funghetti
+   Medio-leggero, veloce quanto basta, colpi normali deboli: vince con i funghetti.
+   Neutro: evoca un funghetto. Ne restano al massimo 2 in campo; se ne evochi un terzo
+           sparisce il piu' vecchio. Camminano verso l'avversario e lo urtano (poco danno),
+           durano circa 8 secondi, si distruggono con 2 colpi (1 se il colpo e' forte)
+           e spariscono se Sporo va K.O. In aria il funghetto atterra sul palco.
+   Lato:   spora a mortaio, un proiettile ad arco che esplode in una nuvola di spore.
+   Su:     molla del fungo (risalita, usabile una volta in aria come gli altri).
+   Giu':   fa esplodere TUTTI i funghetti in campo: ognuno fa un'esplosione di spore.
+   Super: ESERCITO DI CLASH ISLE.
+ Consiglio: evoca, tieni l'avversario tra i funghetti e fai esplodere quando e' vicino.
+ Debolezza: da solo e' fragile, e un avversario veloce ti raggiunge prima dei funghetti.
+
+ FURIA (fucsia) - le mosse si potenziano con i danni subiti
+   Peso medio, bestia cornuta senza mani: attacca con artigli di fuoco. A danno 0 colpisce piu' piano degli altri
+   (circa -25%), ma piu' danno subisce piu' le sue mosse fanno male e lanciano lontano,
+   fino a circa +50% di danno e +30% di lancio, e si muove fino al 10% piu' veloce.
+   Nella modalita' a punti vita la furia segue i punti persi. Una barretta sopra il
+   riquadro del danno e le crepe incandescenti mostrano a che punto e'; a furia piena
+   compare FURIA!. Il Super non viene potenziato, cosi' resta uguale per tutti.
+   Neutro: urlo dirompente (onda corta che trapassa).   Lato: carica furiosa.
+   Su: montante rabbioso (risalita).                     Giu': pestone.
+   Super: COLLERA DI CLASH ISLE.
+ Consiglio: non fuggire dai colpi, ma attenzione: piu' hai danno, piu' sei vicina al K.O.
+
+ Entrambi hanno costume alternativo (SPORO rosso, FURIA ciano), entrata, posa di vittoria,
+ effetti dei colpi e Super propri. Il bilanciamento e' stato misurato con partite
+ automatiche (CPU contro CPU), poi va confermato giocando.
+
+
+15) ONLINE CON PING ALTO: CONNESSIONE DIRETTA E ROLLBACK
+--------------------------------------------------------
+ Prima il gioco aspettava i comandi dell'altro giocatore e tutto passava dal server:
+ con 200 ms di ping verso il server ognuno, tra voi due ce n'erano circa 400, e la
+ partita rallentava e i comandi arrivavano in ritardo. Ora:
+
+ 1) CONNESSIONE DIRETTA (P2P, WebRTC)
+    Appena i due giocatori sono nella stanza, il gioco prova a collegarli direttamente.
+    Il server serve solo a metterli d'accordo. Se i due giocatori sono vicini tra loro
+    il ping cala molto, anche se il server e' lontano. Se la connessione diretta non e'
+    possibile (alcune reti aziendali o con NAT molto restrittivi) il gioco usa il server
+    come prima, senza che tu debba fare nulla. I comandi viaggiano sempre in entrambi i
+    modi e vale il primo che arriva.
+    PRIVACY: con la connessione diretta l'altro giocatore puo' vedere il tuo indirizzo IP.
+    Chi non lo vuole la disattiva da Opzioni > "Connessione diretta (P2P)" (vale per te:
+    se uno dei due la disattiva, si usa il server).
+
+ 2) ROLLBACK
+    Il tuo personaggio risponde subito ai tuoi comandi. Quelli dell'avversario vengono
+    previsti (si ripetono direzioni e scudo, non i pulsanti); se poi arriva un comando
+    diverso, il gioco torna al fotogramma giusto e ricalcola tutto in un attimo.
+    Si aspetta l'altro solo se l'errore da correggere supera 18 fotogrammi (0,3 secondi).
+    Il piccolo ritardo fisso sui comandi (2-6 fotogrammi) si adatta al ping.
+
+ 3) RITMO SINCRONIZZATO: i due giochi si regolano per non sfasarsi.
+
+ Come leggere l'indicatore in alto a destra durante la partita:
+    P2P 38 ms      connessione diretta, 38 ms di andata e ritorno tra voi due
+    RELAY 205 ms   si passa dal server, 205 ms tra voi due
+    ↺ 5 · 2f       ultimo rollback di 5 fotogrammi e ritardo fisso di 2 fotogrammi
+ Nella stanza, sotto i riquadri, compare "Connessione diretta (P2P)" o "Connessione
+ tramite server" con il ping.
+
+ IMPORTANTE: tutti i giocatori devono avere la stessa versione. Questa versione NON
+ gioca con quelle precedenti (il protocollo e' cambiato): carica la nuova su Render,
+ itch.io e Game Jolt insieme. Il server (server.js) non e' cambiato.
+
+ SE IL PING RESTA ALTO (RELAY con tanti ms)
+    Vuol dire che la connessione diretta non si e' aperta e il server e' lontano da
+    voi. Su Render il servizio gratuito sta in un'unica regione, scelta alla creazione
+    e non modificabile: per cambiarla crea un NUOVO servizio web scegliendo "Frankfurt
+    (EU Central)" se giocate dall'Europa, con lo stesso repository, poi cambia la riga
+    SERVER_URL in index.html con il nuovo indirizzo e ricarica il gioco ovunque.
+    Dalla stessa lobby puoi controllare il ping tra voi due prima di avviare.
+
+
+16) PAUSA
+---------
+ In tutte le modalita' tranne l'online: VS CPU, Due giocatori, Allenamento, TOUR ISLE e Tutorial.
+   Esc oppure il tasto Pausa  apre il menu di pausa. Il tasto Pausa si sceglie in COMANDI, riga
+                         "Pausa" di P1 (predefinito P) e di P2 (predefinito H). Esc funziona sempre.
+                         In Allenamento il tasto "Pausa allenamento" (P) resta la pausa con passo a passo.
+   Gamepad               Start, oppure Select tenuto premuto (nel Tutorial Start va avanti).
+                         Nel menu di pausa A conferma, B riprende.
+ Il menu ha RIPRENDI, RICOMINCIA (non in Allenamento e Tutorial) e ESCI AL MENU
+ (nel Tutorial: ESCI DALLA LEZIONE). Esc o P di nuovo riprendono. La partita, il conto
+ alla rovescia e le cinematiche restano ferme; la musica si abbassa. In TOUR ISLE
+ RICOMINCIA rifa' lo stesso round, ESCI abbandona il percorso.
+ Prima Esc in partita usciva subito al menu. In una partita online non c'e' pausa:
+ Esc (o Select tenuto premuto) lascia la partita, come prima.
+
+ FURIA: ora e' senza mani; attacca con artigli di fuoco, piu' grandi con la furia.
+ CORREZIONE: l'area gialla del Super poteva spostare in modo sbagliato i funghetti di
+ Sporo; risolto.
+ CORREZIONE GAMEPAD: aprendo la pausa con Start o Select il pulsante, ancora premuto, richiudeva
+ subito il menu; ora viene ignorato finche' non lo rilasci.
