@@ -1,8 +1,0 @@
-{
-  "name": "clash-isle-server",
-  "version": "1.0.0",
-  "description": "Server per le stanze online di Clash Isle (nessuna dipendenza)",
-  "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "engines": { "node": ">=16" }
-}
